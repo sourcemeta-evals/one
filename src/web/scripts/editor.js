@@ -6,6 +6,59 @@ import { history, historyKeymap } from "@codemirror/commands";
 import { indentOnInput } from "@codemirror/language";
 import { json } from "@codemirror/lang-json";
 
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+// unrelated
+
 const setHighlights = StateEffect.define();
 const highlightPlugin = StateField.define({
   create() { return Decoration.none; },
@@ -27,6 +80,7 @@ const highlightPlugin = StateField.define({
 
 export class Editor {
   constructor(parent, contents = "", options = {}) {
+    this.highlightData = [];
     const extensions = [
       lineNumbers(),
       drawSelection(),
@@ -65,15 +119,32 @@ export class Editor {
   }
 
   unhighlight() {
+    this.highlightData = [];
     this.view.dispatch({
       effects: setHighlights.of(Decoration.none)
     });
   }
 
+  highlights() {
+    return this.highlightData;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+    const lineCount = this.view.state.doc.lines;
+    if (lineStart < 1 || lineStart > lineCount || lineEnd < 1 || lineEnd > lineCount) {
+      throw new RangeError(`Line out of range: document has ${lineCount} lines`);
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(`Column ${columnStart} out of range for line ${lineStart}`);
+    } else if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(`Column ${columnEnd} out of range for line ${lineEnd}`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -87,6 +158,8 @@ export class Editor {
         `
       }
     });
+
+    this.highlightData.push({ range, color });
 
     // Make sure to not override existing highlights
     const current = this.view.state.field(highlightPlugin);
