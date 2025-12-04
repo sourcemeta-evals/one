@@ -1,5 +1,7 @@
 # Sourcemeta One
 
+xxxx
+
 A high-performance, self-hosted JSON Schema registry that transforms your
 existing Git repositories of schemas into searchable, discoverable schema
 catalogs with enterprise-grade governance capabilities.
