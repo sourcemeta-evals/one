@@ -8,6 +8,26 @@ MKDOCS ?= mkdocs
 NPM ?= npm
 NPX ?= npx
 
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+# foo
+
 # Options
 INDEX ?= ON
 SERVER ?= ON
@@ -71,6 +91,10 @@ test-ui: node_modules
 	$(NPX) playwright install --with-deps
 	env PLAYWRIGHT_BASE_URL=$(SANDBOX_URL) \
 		$(NPX) playwright test --config test/ui/playwright.config.js
+
+test-js:
+	npm ci
+	node test/js/*.test.js
 
 .PHONY: sandbox-index
 sandbox-index: compile
