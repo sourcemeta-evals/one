@@ -7,22 +7,31 @@ import { indentOnInput } from "@codemirror/language";
 import { json } from "@codemirror/lang-json";
 
 const setHighlights = StateEffect.define();
+const highlightMetadata = StateEffect.define();
 const highlightPlugin = StateField.define({
-  create() { return Decoration.none; },
-  update(highlights, transaction) {
+  create() {
+    return { decorations: Decoration.none, metadata: [] };
+  },
+  update(state, transaction) {
+    let decorations = state.decorations;
+    let metadata = state.metadata;
+
     for (const effect of transaction.effects) {
       if (effect.is(setHighlights)) {
-        return effect.value;
+        decorations = effect.value;
+      }
+      if (effect.is(highlightMetadata)) {
+        metadata = effect.value;
       }
     }
 
     if (transaction.docChanged) {
-      return highlights.map(transaction.changes);
+      decorations = decorations.map(transaction.changes);
     }
 
-    return highlights;
+    return { decorations, metadata };
   },
-  provide: (field) => EditorView.decorations.from(field)
+  provide: (field) => EditorView.decorations.from(field, (state) => state.decorations)
 });
 
 export class Editor {
@@ -66,14 +75,45 @@ export class Editor {
 
   unhighlight() {
     this.view.dispatch({
-      effects: setHighlights.of(Decoration.none)
+      effects: [
+        setHighlights.of(Decoration.none),
+        highlightMetadata.of([])
+      ]
     });
   }
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(
+        `lineStart ${lineStart} is out of bounds (1-${totalLines})`);
+    }
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(
+        `lineEnd ${lineEnd} is out of bounds (1-${totalLines})`);
+    }
+    if (lineStart > lineEnd) {
+      throw new RangeError(
+        `lineStart ${lineStart} cannot be greater than lineEnd ${lineEnd}`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+    const fromLineLength = fromLine.length;
+    const toLineLength = toLine.length;
+
+    if (columnStart < 1 || columnStart > fromLineLength + 1) {
+      throw new RangeError(
+        `columnStart ${columnStart} is out of bounds (1-${fromLineLength + 1})`);
+    }
+    if (columnEnd < 0 || columnEnd > toLineLength) {
+      throw new RangeError(
+        `columnEnd ${columnEnd} is out of bounds (0-${toLineLength})`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -90,14 +130,30 @@ export class Editor {
 
     // Make sure to not override existing highlights
     const current = this.view.state.field(highlightPlugin);
-    const newSet = current.update({
+    const newSet = current.decorations.update({
       add: [ { from, to, value: decoration } ],
       sort: true
     });
 
+    const newMetadata = [
+      ...current.metadata,
+      { range: [ lineStart, columnStart, lineEnd, columnEnd ], color }
+    ];
+
     this.view.dispatch({
-      effects: setHighlights.of(newSet)
+      effects: [
+        setHighlights.of(newSet),
+        highlightMetadata.of(newMetadata)
+      ]
     });
+  }
+
+  highlights() {
+    const state = this.view.state.field(highlightPlugin);
+    return state.metadata.map((item) => ({
+      range: [...item.range],
+      color: item.color
+    }));
   }
 
   scroll(lineNumber) {
