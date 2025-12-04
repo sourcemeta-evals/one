@@ -72,8 +72,36 @@ export class Editor {
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const lineCount = doc.lines;
+
+    if (lineStart < 1 || lineStart > lineCount) {
+      throw new RangeError(`lineStart ${lineStart} is out of bounds (1-${lineCount})`);
+    }
+
+    if (lineEnd < 1 || lineEnd > lineCount) {
+      throw new RangeError(`lineEnd ${lineEnd} is out of bounds (1-${lineCount})`);
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError(`lineStart ${lineStart} cannot be greater than lineEnd ${lineEnd}`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(`columnStart ${columnStart} is out of bounds (1-${fromLine.length + 1}) for line ${lineStart}`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(`columnEnd ${columnEnd} is out of bounds (0-${toLine.length}) for line ${lineEnd}`);
+    }
+
+    if (lineStart === lineEnd && columnStart > columnEnd + 1) {
+      throw new RangeError(`columnStart ${columnStart} cannot be greater than columnEnd + 1 (${columnEnd + 1}) on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -119,5 +147,38 @@ export class Editor {
 
   content() {
     return this.view.state.doc.toString();
+  }
+
+  highlights() {
+    const result = [];
+    const doc = this.view.state.doc;
+    const decorations = this.view.state.field(highlightPlugin);
+
+    const cursor = decorations.iter();
+    while (cursor.value !== null) {
+      const from = cursor.from;
+      const to = cursor.to;
+      const style = cursor.value.spec.attributes?.style || "";
+
+      const colorMatch = style.match(/background-color:\s*([^;]+)/);
+      const color = colorMatch ? colorMatch[1].trim() : "";
+
+      const fromLine = doc.lineAt(from);
+      const toLine = doc.lineAt(to);
+
+      const lineStart = fromLine.number;
+      const columnStart = from - fromLine.from + 1;
+      const lineEnd = toLine.number;
+      const columnEnd = to - toLine.from;
+
+      result.push({
+        range: [ lineStart, columnStart, lineEnd, columnEnd ],
+        color
+      });
+
+      cursor.next();
+    }
+
+    return result;
   }
 };
