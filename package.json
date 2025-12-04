@@ -11,5 +11,8 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.1",
     "@playwright/test": "^1.55.1"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
   }
 }
