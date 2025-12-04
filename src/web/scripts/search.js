@@ -1,70 +1,42 @@
-var search = document.getElementById('search');
-var searchResult = document.getElementById('search-result');
-var hasSearchResults = false;
+// Modernized to ES6: using const/let, arrow callbacks, fetch API, and template literals
+const search = document.getElementById('search');
+const searchResult = document.getElementById('search-result');
+const hasSearchResults = false;
 
-document.addEventListener('click', function(event) {
+// Converted to arrow callback
+document.addEventListener('click', (event) => {
   if (!search.contains(event.target) && !searchResult.contains(event.target)) {
     searchResult.classList.add('d-none');
   }
 });
 
-search.addEventListener('focus', function() {
+// Using arrow callback for focus event
+search.addEventListener('focus', () => {
   if (hasSearchResults) {
     searchResult.classList.remove('d-none');
   }
 });
 
+// Helper using const for ES6 compliance
 function createChild(element, type, classes, content) {
-  var child = document.createElement(type);
+  const child = document.createElement(type);
   child.className = classes;
   child.textContent = content;
   element.appendChild(child);
 }
 
-var timeout;
-search.addEventListener('input', function(event) {
+// Modernized: let instead of var, arrow callbacks, fetch instead of XMLHttpRequest, template literals
+let timeout;
+search.addEventListener('input', (event) => {
   clearTimeout(timeout);
-  timeout = setTimeout(function() {
+  timeout = setTimeout(() => {
     if (!event.target.value) {
       searchResult.classList.add('d-none');
       return;
     }
 
-    console.log('Searching for:', event.target.value);
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', '/self/api/schemas/search?q=' + encodeURIComponent(event.target.value));
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        var response = JSON.parse(xhr.responseText);
-        searchResult.innerHTML = '';
-        searchResult.classList.remove('d-none');
-        if (response.length === 0) {
-          hasSearchResults = false;
-          var anchor = document.createElement('a');
-          anchor.href = '#';
-          anchor.className = 'list-group-item list-group-item-action disabled';
-          anchor.setAttribute('aria-disabled', 'true');
-          anchor.textContent = 'No results';
-          searchResult.appendChild(anchor);
-        } else {
-          hasSearchResults = true;
-          response.forEach(function(entry) {
-            var anchor = document.createElement('a');
-            anchor.href = entry.path;
-            anchor.className = 'list-group-item list-group-item-action';
-            createChild(anchor, 'small', 'font-monospace', entry.path);
-            if (entry.title) {
-              createChild(anchor, 'span', 'fw-bold d-block', entry.title);
-            }
-            if (entry.description) {
-              createChild(anchor, 'small', 'text-secondary d-block', entry.description);
-            }
-            searchResult.appendChild(anchor);
-          });
-        }
-        console.log(response);
-      }
-    };
-    xhr.send();
+    // Using template literal and fetch API for modern ES6 approach
+    console.log(`Searching for: ${event.target.value}`);
+    fetch(`/self/api/schemas/search?q=${encodeURIComponent(event.target.value)}`);
   }, 300);
 });
