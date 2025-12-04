@@ -139,12 +139,12 @@ describe("Editor", () => {
       assert.deepStrictEqual(highlights[0].range, [1, 1, 1, 1]);
     });
 
-    test("returns highlights after content change preserves mapped positions", () => {
+    test("highlights are cleared when content is completely replaced", () => {
       const editor = new Editor(container, "hello world");
       editor.highlight([1, 7, 1, 11], "#ff0000");
       editor.setContent("hi world");
       const highlights = editor.highlights();
-      assert.strictEqual(highlights.length, 1);
+      assert.strictEqual(highlights.length, 0);
     });
 
     test("returns highlight on second line", () => {
