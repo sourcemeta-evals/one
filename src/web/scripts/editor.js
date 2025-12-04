@@ -70,10 +70,63 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const result = [];
+    const current = this.view.state.field(highlightPlugin);
+    const doc = this.view.state.doc;
+
+    const cursor = current.iter();
+    while (cursor.value !== null) {
+      const fromLine = doc.lineAt(cursor.from);
+      const toLine = doc.lineAt(cursor.to);
+
+      const lineStart = fromLine.number;
+      const columnStart = cursor.from - fromLine.from + 1;
+      const lineEnd = toLine.number;
+      const columnEnd = cursor.to - toLine.from;
+
+      const style = cursor.value.spec.attributes?.style || "";
+      const colorMatch = style.match(/background-color:\s*([^;]+)/);
+      const color = colorMatch ? colorMatch[1].trim() : "";
+
+      result.push({
+        range: [ lineStart, columnStart, lineEnd, columnEnd ],
+        color
+      });
+
+      cursor.next();
+    }
+
+    return result;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+
+    if (lineStart < 1 || lineStart > doc.lines) {
+      throw new RangeError(`lineStart ${lineStart} is out of bounds (1-${doc.lines})`);
+    }
+    if (lineEnd < 1 || lineEnd > doc.lines) {
+      throw new RangeError(`lineEnd ${lineEnd} is out of bounds (1-${doc.lines})`);
+    }
+    if (lineStart > lineEnd) {
+      throw new RangeError(`lineStart ${lineStart} cannot be greater than lineEnd ${lineEnd}`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(`columnStart ${columnStart} is out of bounds (1-${fromLine.length + 1}) for line ${lineStart}`);
+    }
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(`columnEnd ${columnEnd} is out of bounds (0-${toLine.length}) for line ${lineEnd}`);
+    }
+    if (lineStart === lineEnd && columnStart > columnEnd + 1) {
+      throw new RangeError(`columnStart ${columnStart} cannot be greater than columnEnd + 1 (${columnEnd + 1}) on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
