@@ -16,17 +16,18 @@ runs:
   using: 'composite'
   steps:
     - name: Build Sandbox (${{ inputs.configuration }})
-      run: docker compose --file test/sandbox/compose.yaml build
+      run: make docker-sandbox-build
       shell: bash
       env:
-        SOURCEMETA_ONE_SANDBOX_CONFIGURATION: ${{ inputs.configuration }}
-        SOURCEMETA_ONE_SANDBOX_PORT: ${{ inputs.port }}
+        SANDBOX_CONFIGURATION: ${{ inputs.configuration }}
+        SANDBOX_PORT: ${{ inputs.port }}
+        PARALLEL: 2
     - name: Up Sandbox (${{ inputs.configuration }})
-      run: docker compose --file test/sandbox/compose.yaml up --detach --wait
+      run: make docker-sandbox-up
       shell: bash
       env:
-        SOURCEMETA_ONE_SANDBOX_CONFIGURATION: ${{ inputs.configuration }}
-        SOURCEMETA_ONE_SANDBOX_PORT: ${{ inputs.port }}
+        SANDBOX_CONFIGURATION: ${{ inputs.configuration }}
+        SANDBOX_PORT: ${{ inputs.port }}
     - name: Test Sandbox - E2E (${{ inputs.configuration }})
       run: make test-e2e PRESET=Release
       shell: bash
@@ -42,8 +43,8 @@ runs:
         SANDBOX_CONFIGURATION: ${{ inputs.configuration }}
         SANDBOX_PORT: ${{ inputs.port }}
     - name: Down Sandbox (${{ inputs.configuration }})
-      run: docker compose --file test/sandbox/compose.yaml down
+      run: make docker-sandbox-down
       shell: bash
       env:
-        SOURCEMETA_ONE_SANDBOX_CONFIGURATION: ${{ inputs.configuration }}
-        SOURCEMETA_ONE_SANDBOX_PORT: ${{ inputs.port }}
+        SANDBOX_CONFIGURATION: ${{ inputs.configuration }}
+        SANDBOX_PORT: ${{ inputs.port }}

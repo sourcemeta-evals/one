@@ -1,101 +1,216 @@
-import { test, describe, beforeEach, afterEach } from "node:test";
+import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert";
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM("<!DOCTYPE html><html><body><div id=\"editor\"></div></body></html>", {
-  url: "http://localhost",
-  pretendToBeVisual: true
-});
+const dom = new JSDOM("<!DOCTYPE html><html><body><div id=\"editor\"></div></body></html>");
 
-global.window = dom.window;
+// Additional stubs needed by CodeMirror
 global.document = dom.window.document;
-Object.defineProperty(global, "navigator", {
-  value: dom.window.navigator,
-  writable: true,
-  configurable: true
-});
+global.window = dom.window;
 global.MutationObserver = dom.window.MutationObserver;
-global.getComputedStyle = dom.window.getComputedStyle;
-global.requestAnimationFrame = (callback) => setTimeout(callback, 0);
-global.cancelAnimationFrame = (id) => clearTimeout(id);
+dom.window.requestAnimationFrame = (callback) => setTimeout(callback, 16);
+dom.window.cancelAnimationFrame = (id) => clearTimeout(id);
+dom.window.Range.prototype.getClientRects = () => [];
+dom.window.Range.prototype.getBoundingClientRect = () =>
+  ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 });
 
+// Dynamic import is required because static imports are hoisted and execute
+// before any code runs. The JSDOM globals must be set up before CodeMirror
+// loads, as it checks for browser APIs like MutationObserver at import time
 const { Editor } = await import("../../src/web/scripts/editor.js");
 
 describe("Editor", () => {
-  let container;
-  let editor;
+  const container = document.getElementById("editor");
 
   beforeEach(() => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
+    container.innerHTML = "";
   });
 
-  afterEach(() => {
-    if (editor && editor.view) {
-      editor.view.destroy();
-    }
-    container.remove();
+  test("content returns empty string by default", () => {
+    const editor = new Editor(container);
+    assert.strictEqual(editor.content(), "");
   });
 
-  describe("content", () => {
-    test("returns empty string for empty editor", () => {
-      editor = new Editor(container);
-      assert.strictEqual(editor.content(), "");
-    });
-
-    test("returns initial content", () => {
-      const initialContent = "Hello, World!";
-      editor = new Editor(container, initialContent);
-      assert.strictEqual(editor.content(), initialContent);
-    });
-
-    test("returns multiline content", () => {
-      const multilineContent = "Line 1\nLine 2\nLine 3";
-      editor = new Editor(container, multilineContent);
-      assert.strictEqual(editor.content(), multilineContent);
-    });
+  test("content returns initial content", () => {
+    const editor = new Editor(container, "hello world");
+    assert.strictEqual(editor.content(), "hello world");
   });
 
-  describe("setContent", () => {
-    test("sets content on empty editor", () => {
-      editor = new Editor(container);
-      const newContent = "New content";
-      editor.setContent(newContent);
-      assert.strictEqual(editor.content(), newContent);
-    });
+  test("content returns multiline content", () => {
+    const editor = new Editor(container, "line 1\nline 2\nline 3");
+    assert.strictEqual(editor.content(), "line 1\nline 2\nline 3");
+  });
 
-    test("replaces existing content", () => {
-      editor = new Editor(container, "Initial content");
-      const newContent = "Replaced content";
-      editor.setContent(newContent);
-      assert.strictEqual(editor.content(), newContent);
-    });
+  test("setContent replaces empty content", () => {
+    const editor = new Editor(container);
+    editor.setContent("new content");
+    assert.strictEqual(editor.content(), "new content");
+  });
 
-    test("sets empty content", () => {
-      editor = new Editor(container, "Some content");
-      editor.setContent("");
-      assert.strictEqual(editor.content(), "");
-    });
+  test("setContent replaces existing content", () => {
+    const editor = new Editor(container, "initial");
+    editor.setContent("replaced");
+    assert.strictEqual(editor.content(), "replaced");
+  });
 
-    test("sets multiline content", () => {
-      editor = new Editor(container);
-      const multilineContent = "Line 1\nLine 2\nLine 3";
-      editor.setContent(multilineContent);
-      assert.strictEqual(editor.content(), multilineContent);
-    });
+  test("setContent with empty string clears content", () => {
+    const editor = new Editor(container, "some content");
+    editor.setContent("");
+    assert.strictEqual(editor.content(), "");
+  });
 
-    test("handles special characters", () => {
-      editor = new Editor(container);
-      const specialContent = "Special: \t\n\"quotes\" 'apostrophes' <tags>";
-      editor.setContent(specialContent);
-      assert.strictEqual(editor.content(), specialContent);
-    });
+  test("setContent can be called multiple times", () => {
+    const editor = new Editor(container, "first");
+    editor.setContent("second");
+    editor.setContent("third");
+    assert.strictEqual(editor.content(), "third");
+  });
 
-    test("handles JSON content", () => {
-      editor = new Editor(container, "", { json: true });
-      const jsonContent = '{"key": "value", "number": 42}';
-      editor.setContent(jsonContent);
-      assert.strictEqual(editor.content(), jsonContent);
-    });
+  test("setContent handles multiline content", () => {
+    const editor = new Editor(container);
+    editor.setContent("line 1\nline 2\nline 3");
+    assert.strictEqual(editor.content(), "line 1\nline 2\nline 3");
+  });
+
+  test("highlights returns empty array by default", () => {
+    const editor = new Editor(container, "hello world");
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight adds a single highlight", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    assert.deepStrictEqual(editor.highlights(), [
+      { range: [1, 1, 1, 5], color: "#ff0000" }
+    ]);
+  });
+
+  test("highlight can be called multiple times with different colors", () => {
+    const editor = new Editor(container, "hello world\nfoo bar");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.highlight([2, 1, 2, 3], "#00ff00");
+    assert.deepStrictEqual(editor.highlights(), [
+      { range: [1, 1, 1, 5], color: "#ff0000" },
+      { range: [2, 1, 2, 3], color: "#00ff00" }
+    ]);
+  });
+
+  test("highlight preserves previous highlights", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 3], "#ff0000");
+    editor.highlight([1, 5, 1, 7], "#0000ff");
+    editor.highlight([1, 9, 1, 11], "#00ff00");
+    assert.strictEqual(editor.highlights().length, 3);
+    assert.deepStrictEqual(editor.highlights()[0], { range: [1, 1, 1, 3], color: "#ff0000" });
+    assert.deepStrictEqual(editor.highlights()[1], { range: [1, 5, 1, 7], color: "#0000ff" });
+    assert.deepStrictEqual(editor.highlights()[2], { range: [1, 9, 1, 11], color: "#00ff00" });
+  });
+
+  test("highlight can span multiple lines", () => {
+    const editor = new Editor(container, "line 1\nline 2\nline 3");
+    editor.highlight([1, 1, 3, 6], "#ff0000");
+    assert.deepStrictEqual(editor.highlights(), [
+      { range: [1, 1, 3, 6], color: "#ff0000" }
+    ]);
+  });
+
+  test("unhighlight removes all highlights", () => {
+    const editor = new Editor(container, "hello world\nfoo bar");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.highlight([2, 1, 2, 3], "#00ff00");
+    assert.strictEqual(editor.highlights().length, 2);
+    editor.unhighlight();
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("unhighlight on editor with no highlights does nothing", () => {
+    const editor = new Editor(container, "hello world");
+    assert.deepStrictEqual(editor.highlights(), []);
+    editor.unhighlight();
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("unhighlight can be called multiple times safely", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.unhighlight();
+    editor.unhighlight();
+    editor.unhighlight();
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight after unhighlight starts fresh", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.unhighlight();
+    editor.highlight([1, 7, 1, 11], "#0000ff");
+    assert.deepStrictEqual(editor.highlights(), [
+      { range: [1, 7, 1, 11], color: "#0000ff" }
+    ]);
+  });
+
+  test("highlight throws RangeError for line number less than 1", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([0, 1, 1, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  test("highlight throws RangeError for line number exceeding document lines", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([1, 1, 2, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  test("highlight throws RangeError for end line exceeding document lines", () => {
+    const editor = new Editor(container, "line 1\nline 2");
+    assert.throws(
+      () => editor.highlight([1, 1, 5, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  test("highlight throws RangeError for column less than 1", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([1, 0, 1, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  test("highlight throws RangeError for start column exceeding line length", () => {
+    const editor = new Editor(container, "hello");
+    assert.throws(
+      () => editor.highlight([1, 10, 1, 11], "#ff0000"),
+      RangeError
+    );
+  });
+
+  test("highlight throws RangeError for end column exceeding line length", () => {
+    const editor = new Editor(container, "hello");
+    assert.throws(
+      () => editor.highlight([1, 1, 1, 20], "#ff0000"),
+      RangeError
+    );
+  });
+
+  test("highlight throws RangeError for negative end column", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([1, 1, 1, -1], "#ff0000"),
+      RangeError
+    );
+  });
+
+  test("highlight with same color multiple times", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 3], "#ff0000");
+    editor.highlight([1, 5, 1, 7], "#ff0000");
+    assert.strictEqual(editor.highlights().length, 2);
+    assert.strictEqual(editor.highlights()[0].color, "#ff0000");
+    assert.strictEqual(editor.highlights()[1].color, "#ff0000");
   });
 });
