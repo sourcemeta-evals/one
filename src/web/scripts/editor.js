@@ -70,10 +70,69 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const result = [];
+    const current = this.view.state.field(highlightPlugin);
+    const cursor = current.iter();
+
+    while (cursor.value !== null) {
+      const from = cursor.from;
+      const to = cursor.to;
+      const style = cursor.value.spec.attributes?.style || "";
+
+      const colorMatch = style.match(/background-color:\s*([^;]+)/);
+      const color = colorMatch ? colorMatch[1].trim() : "";
+
+      const fromLine = this.view.state.doc.lineAt(from);
+      const toLine = this.view.state.doc.lineAt(to);
+
+      const lineStart = fromLine.number;
+      const columnStart = from - fromLine.from + 1;
+      const lineEnd = toLine.number;
+      const columnEnd = to - toLine.from;
+
+      result.push({
+        range: [lineStart, columnStart, lineEnd, columnEnd],
+        color
+      });
+
+      cursor.next();
+    }
+
+    return result;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+    const totalLines = this.view.state.doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(`lineStart ${lineStart} is out of bounds (1-${totalLines})`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(`lineEnd ${lineEnd} is out of bounds (1-${totalLines})`);
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError(`lineStart ${lineStart} cannot be greater than lineEnd ${lineEnd}`);
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(`columnStart ${columnStart} is out of bounds for line ${lineStart} (1-${fromLine.length + 1})`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(`columnEnd ${columnEnd} is out of bounds for line ${lineEnd} (0-${toLine.length})`);
+    }
+
+    if (lineStart === lineEnd && columnStart > columnEnd + 1) {
+      throw new RangeError(`columnStart ${columnStart} cannot be greater than columnEnd + 1 (${columnEnd + 1}) on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
