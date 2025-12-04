@@ -1,3 +1,4 @@
+// Updated
 var search = document.getElementById('search');
 var searchResult = document.getElementById('search-result');
 var hasSearchResults = false;
