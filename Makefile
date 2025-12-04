@@ -72,6 +72,10 @@ test-ui: node_modules
 	env PLAYWRIGHT_BASE_URL=$(SANDBOX_URL) \
 		$(NPX) playwright test --config test/ui/playwright.config.js
 
+.PHONY: test-js
+test-js: node_modules
+	node --experimental-vm-modules --test test/js/*.test.js
+
 .PHONY: sandbox-index
 sandbox-index: compile
 	$(PREFIX)/bin/sourcemeta-one-index \
