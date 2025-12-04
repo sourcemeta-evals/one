@@ -27,6 +27,7 @@ const highlightPlugin = StateField.define({
 
 export class Editor {
   constructor(parent, contents = "", options = {}) {
+    this._highlights = [];
     const extensions = [
       lineNumbers(),
       drawSelection(),
@@ -65,15 +66,57 @@ export class Editor {
   }
 
   unhighlight() {
+    this._highlights = [];
     this.view.dispatch({
       effects: setHighlights.of(Decoration.none)
     });
   }
 
+  highlights() {
+    return this._highlights.map(h => ({
+      range: [...h.range],
+      color: h.color
+    }));
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(
+        `lineStart ${lineStart} is out of range [1, ${totalLines}]`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(
+        `lineEnd ${lineEnd} is out of range [1, ${totalLines}]`);
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError(
+        `lineStart ${lineStart} must not be greater than lineEnd ${lineEnd}`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(
+        `columnStart ${columnStart} is out of range [1, ${fromLine.length + 1}]`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(
+        `columnEnd ${columnEnd} is out of range [0, ${toLine.length}]`);
+    }
+
+    if (lineStart === lineEnd && columnStart - 1 > columnEnd) {
+      throw new RangeError(
+        `columnStart ${columnStart} must not be greater than columnEnd ${columnEnd} on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -98,6 +141,8 @@ export class Editor {
     this.view.dispatch({
       effects: setHighlights.of(newSet)
     });
+
+    this._highlights.push({ range: [...range], color });
   }
 
   scroll(lineNumber) {
