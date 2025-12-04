@@ -70,12 +70,79 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const result = [];
+    const doc = this.view.state.doc;
+    const current = this.view.state.field(highlightPlugin);
+
+    const cursor = current.iter();
+    while (cursor.value !== null) {
+      const fromPos = cursor.from;
+      const toPos = cursor.to;
+
+      // Convert absolute positions to line/column
+      const fromLine = doc.lineAt(fromPos);
+      const toLine = doc.lineAt(toPos);
+
+      const lineStart = fromLine.number;
+      const columnStart = fromPos - fromLine.from + 1;
+      const lineEnd = toLine.number;
+      const columnEnd = toPos - toLine.from;
+
+      // Extract color from the decoration's style attribute
+      const style = cursor.value.spec.attributes?.style || "";
+      const colorMatch = style.match(/background-color:\s*([^;]+)/);
+      const color = colorMatch ? colorMatch[1].trim() : "";
+
+      result.push({
+        range: [lineStart, columnStart, lineEnd, columnEnd],
+        color
+      });
+
+      cursor.next();
+    }
+
+    return result;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    // Validate line bounds
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(`lineStart ${lineStart} is out of bounds (1-${totalLines})`);
+    }
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(`lineEnd ${lineEnd} is out of bounds (1-${totalLines})`);
+    }
+    if (lineStart > lineEnd) {
+      throw new RangeError(`lineStart ${lineStart} cannot be greater than lineEnd ${lineEnd}`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    // Validate column bounds
+    // columnStart is 1-indexed, and valid range is 1 to (line length + 1)
+    const fromLineLength = fromLine.to - fromLine.from;
+    if (columnStart < 1 || columnStart > fromLineLength + 1) {
+      throw new RangeError(`columnStart ${columnStart} is out of bounds for line ${lineStart} (1-${fromLineLength + 1})`);
+    }
+
+    // columnEnd is 0-indexed from line start, valid range is 0 to line length
+    const toLineLength = toLine.to - toLine.from;
+    if (columnEnd < 0 || columnEnd > toLineLength) {
+      throw new RangeError(`columnEnd ${columnEnd} is out of bounds for line ${lineEnd} (0-${toLineLength})`);
+    }
+
+    // Validate that start position is not after end position
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
+    if (from > to) {
+      throw new RangeError(`Start position (line ${lineStart}, column ${columnStart}) is after end position (line ${lineEnd}, column ${columnEnd})`);
+    }
 
     const decoration = Decoration.mark({
       attributes: {
