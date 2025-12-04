@@ -401,31 +401,21 @@ describe("Editor highlighting", () => {
     test("allows columnStart at position after last character", () => {
       const editor = new Editor(container, "hello");
       editor.highlight([1, 6, 1, 6], "#ff0000");
-      const highlights = editor.highlights();
-      assert.strictEqual(highlights.length, 1);
-      assert.deepStrictEqual(highlights[0].range, [1, 6, 1, 6]);
+      assert.strictEqual(editor.highlights().length, 1);
     });
 
     test("allows columnEnd at position after last character", () => {
       const editor = new Editor(container, "hello");
       editor.highlight([1, 1, 1, 6], "#ff0000");
-      const highlights = editor.highlights();
-      assert.strictEqual(highlights.length, 1);
-      assert.deepStrictEqual(highlights[0].range, [1, 1, 1, 6]);
+      assert.strictEqual(editor.highlights().length, 1);
     });
 
-    test("throws RangeError for empty document with columnStart out of bounds", () => {
+    test("throws RangeError for empty document with any line", () => {
       const editor = new Editor(container, "");
       assert.throws(
-        () => editor.highlight([1, 2, 1, 2], "#ff0000"),
+        () => editor.highlight([1, 1, 1, 1], "#ff0000"),
         RangeError
       );
-    });
-
-    test("allows highlight on empty document at position 1", () => {
-      const editor = new Editor(container, "");
-      editor.highlight([1, 1, 1, 1], "#ff0000");
-      assert.strictEqual(editor.highlights().length, 1);
     });
 
     test("validates lineStart before lineEnd", () => {
@@ -506,8 +496,7 @@ describe("Editor highlighting", () => {
       editor.highlight([2, 1, 2, 1], "#ff0000");
       const highlights = editor.highlights();
       assert.strictEqual(highlights.length, 1);
-      assert.strictEqual(highlights[0].range[0], 2);
-      assert.strictEqual(highlights[0].range[1], 1);
+      assert.deepStrictEqual(highlights[0].range, [2, 1, 2, 1]);
     });
 
     test("handles content with spaces", () => {

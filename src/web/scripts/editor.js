@@ -75,6 +75,10 @@ export class Editor {
     const doc = this.view.state.doc;
     const totalLines = doc.lines;
 
+    if (doc.length === 0) {
+      throw new RangeError("Cannot highlight an empty document");
+    }
+
     if (lineStart < 1 || lineStart > totalLines) {
       throw new RangeError(`lineStart ${lineStart} is out of bounds (1-${totalLines})`);
     }
@@ -162,13 +166,28 @@ export class Editor {
       const color = colorMatch ? colorMatch[1].trim() : "";
 
       const fromLine = doc.lineAt(from);
-      const clampedTo = Math.min(to, doc.length);
-      const toLine = doc.lineAt(clampedTo);
 
       const lineStart = fromLine.number;
       const columnStart = from - fromLine.from + 1;
-      const lineEnd = toLine.number;
-      const columnEnd = to - toLine.from;
+
+      let lineEnd;
+      let columnEnd;
+
+      if (to > doc.length) {
+        const lastLine = doc.line(doc.lines);
+        lineEnd = lastLine.number;
+        columnEnd = to - lastLine.from;
+      } else {
+        const toLine = doc.lineAt(to);
+        if (to === toLine.from && to > 0) {
+          const prevLine = doc.lineAt(to - 1);
+          lineEnd = prevLine.number;
+          columnEnd = to - prevLine.from;
+        } else {
+          lineEnd = toLine.number;
+          columnEnd = to - toLine.from;
+        }
+      }
 
       result.push({
         range: [lineStart, columnStart, lineEnd, columnEnd],
