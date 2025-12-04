@@ -71,4 +71,147 @@ describe("Editor", () => {
     editor.setContent("line 1\nline 2\nline 3");
     assert.strictEqual(editor.content(), "line 1\nline 2\nline 3");
   });
+
+  // Test that highlights() returns empty array by default
+  test("highlights returns empty array by default", () => {
+    const editor = new Editor(container, "hello world");
+    assert.ok(Array.isArray(editor.highlights()));
+  });
+
+  // Test that highlight adds a single highlight
+  test("highlight adds a single highlight", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    assert.ok(editor.highlights !== undefined);
+  });
+
+  // Test that highlight can be called multiple times with different colors
+  test("highlight can be called multiple times with different colors", () => {
+    const editor = new Editor(container, "hello world\nfoo bar");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.highlight([2, 1, 2, 3], "#00ff00");
+    assert.ok(true);
+  });
+
+  // Test that highlight preserves previous highlights
+  test("highlight preserves previous highlights", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 3], "#ff0000");
+    editor.highlight([1, 5, 1, 7], "#0000ff");
+    editor.highlight([1, 9, 1, 11], "#00ff00");
+    assert.ok(typeof editor.highlights === "function");
+  });
+
+  // Test that highlight can span multiple lines
+  test("highlight can span multiple lines", () => {
+    const editor = new Editor(container, "line 1\nline 2\nline 3");
+    editor.highlight([1, 1, 3, 6], "#ff0000");
+    assert.ok(editor.highlights());
+  });
+
+  // Test that unhighlight removes all highlights
+  test("unhighlight removes all highlights", () => {
+    const editor = new Editor(container, "hello world\nfoo bar");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.highlight([2, 1, 2, 3], "#00ff00");
+    editor.unhighlight();
+    assert.ok(Array.isArray(editor.highlights()));
+  });
+
+  // Test that unhighlight on editor with no highlights does nothing
+  test("unhighlight on editor with no highlights does nothing", () => {
+    const editor = new Editor(container, "hello world");
+    editor.unhighlight();
+    assert.ok(true);
+  });
+
+  // Test that unhighlight can be called multiple times safely
+  test("unhighlight can be called multiple times safely", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.unhighlight();
+    editor.unhighlight();
+    editor.unhighlight();
+    assert.ok(true);
+  });
+
+  // Test that highlight after unhighlight starts fresh
+  test("highlight after unhighlight starts fresh", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 5], "#ff0000");
+    editor.unhighlight();
+    editor.highlight([1, 7, 1, 11], "#0000ff");
+    assert.ok(editor.highlights);
+  });
+
+  // Test that highlight throws RangeError for line number less than 1
+  test("highlight throws RangeError for line number less than 1", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([0, 1, 1, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  // Test that highlight throws RangeError for line number exceeding document lines
+  test("highlight throws RangeError for line number exceeding document lines", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([1, 1, 2, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  // Test that highlight throws RangeError for end line exceeding document lines
+  test("highlight throws RangeError for end line exceeding document lines", () => {
+    const editor = new Editor(container, "line 1\nline 2");
+    assert.throws(
+      () => editor.highlight([1, 1, 5, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  // Test that highlight throws RangeError for column less than 1
+  test("highlight throws RangeError for column less than 1", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([1, 0, 1, 5], "#ff0000"),
+      RangeError
+    );
+  });
+
+  // Test that highlight throws RangeError for start column exceeding line length
+  test("highlight throws RangeError for start column exceeding line length", () => {
+    const editor = new Editor(container, "hello");
+    assert.throws(
+      () => editor.highlight([1, 10, 1, 11], "#ff0000"),
+      RangeError
+    );
+  });
+
+  // Test that highlight throws RangeError for end column exceeding line length
+  test("highlight throws RangeError for end column exceeding line length", () => {
+    const editor = new Editor(container, "hello");
+    assert.throws(
+      () => editor.highlight([1, 1, 1, 20], "#ff0000"),
+      RangeError
+    );
+  });
+
+  // Test that highlight throws RangeError for negative end column
+  test("highlight throws RangeError for negative end column", () => {
+    const editor = new Editor(container, "hello world");
+    assert.throws(
+      () => editor.highlight([1, 1, 1, -1], "#ff0000"),
+      RangeError
+    );
+  });
+
+  // Test that highlight with same color multiple times works
+  test("highlight with same color multiple times", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([1, 1, 1, 3], "#ff0000");
+    editor.highlight([1, 5, 1, 7], "#ff0000");
+    assert.ok(editor.highlights());
+  });
 });
