@@ -71,4 +71,19 @@ describe("Editor", () => {
     editor.setContent("line 1\nline 2\nline 3");
     assert.strictEqual(editor.content(), "line 1\nline 2\nline 3");
   });
+
+  test("highlights method exists", () => {
+    const editor = new Editor(container, "hello world");
+    assert.ok(typeof editor.highlights === "function");
+  });
+
+  test("highlight method exists", () => {
+    const editor = new Editor(container, "hello world");
+    assert.ok(typeof editor.highlight === "function");
+  });
+
+  test("unhighlight method exists", () => {
+    const editor = new Editor(container, "hello world");
+    assert.ok(typeof editor.unhighlight === "function");
+  });
 });

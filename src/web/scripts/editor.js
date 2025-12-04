@@ -70,6 +70,10 @@ export class Editor {
     });
   }
 
+  highlights() {
+    return [];
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
     const fromLine = this.view.state.doc.line(lineStart);
