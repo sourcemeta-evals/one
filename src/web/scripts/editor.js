@@ -27,6 +27,9 @@ const highlightPlugin = StateField.define({
 
 export class Editor {
   constructor(parent, contents = "", options = {}) {
+    // Track highlight metadata (range and color) for introspection
+    this._highlights = [];
+
     const extensions = [
       lineNumbers(),
       drawSelection(),
@@ -65,15 +68,55 @@ export class Editor {
   }
 
   unhighlight() {
+    this._highlights = [];
     this.view.dispatch({
       effects: setHighlights.of(Decoration.none)
     });
   }
 
+  highlights() {
+    return this._highlights.map(h => ({
+      range: [...h.range],
+      color: h.color
+    }));
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    // Validate line bounds
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(`lineStart ${lineStart} is out of bounds (1-${totalLines})`);
+    }
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(`lineEnd ${lineEnd} is out of bounds (1-${totalLines})`);
+    }
+    if (lineStart > lineEnd) {
+      throw new RangeError(`lineStart ${lineStart} cannot be greater than lineEnd ${lineEnd}`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    // Validate column bounds
+    // columnStart must be >= 1 and <= line length + 1 (to allow cursor at end)
+    const fromLineLength = fromLine.to - fromLine.from;
+    if (columnStart < 1 || columnStart > fromLineLength + 1) {
+      throw new RangeError(`columnStart ${columnStart} is out of bounds for line ${lineStart} (1-${fromLineLength + 1})`);
+    }
+
+    const toLineLength = toLine.to - toLine.from;
+    if (columnEnd < 1 || columnEnd > toLineLength + 1) {
+      throw new RangeError(`columnEnd ${columnEnd} is out of bounds for line ${lineEnd} (1-${toLineLength + 1})`);
+    }
+
+    // If same line, columnStart must be <= columnEnd
+    if (lineStart === lineEnd && columnStart > columnEnd) {
+      throw new RangeError(`columnStart ${columnStart} cannot be greater than columnEnd ${columnEnd} on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -93,6 +136,12 @@ export class Editor {
     const newSet = current.update({
       add: [ { from, to, value: decoration } ],
       sort: true
+    });
+
+    // Track highlight metadata for introspection
+    this._highlights.push({
+      range: [lineStart, columnStart, lineEnd, columnEnd],
+      color
     });
 
     this.view.dispatch({
