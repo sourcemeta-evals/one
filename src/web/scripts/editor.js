@@ -7,6 +7,8 @@ import { indentOnInput } from "@codemirror/language";
 import { json } from "@codemirror/lang-json";
 
 const setHighlights = StateEffect.define();
+const setHighlightData = StateEffect.define();
+
 const highlightPlugin = StateField.define({
   create() { return Decoration.none; },
   update(highlights, transaction) {
@@ -25,6 +27,19 @@ const highlightPlugin = StateField.define({
   provide: (field) => EditorView.decorations.from(field)
 });
 
+const highlightDataPlugin = StateField.define({
+  create() { return []; },
+  update(data, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setHighlightData)) {
+        return effect.value;
+      }
+    }
+
+    return data;
+  }
+});
+
 export class Editor {
   constructor(parent, contents = "", options = {}) {
     const extensions = [
@@ -35,7 +50,8 @@ export class Editor {
       indentOnInput(),
       syntaxHighlighting(defaultHighlightStyle),
       EditorView.lineWrapping,
-      highlightPlugin
+      highlightPlugin,
+      highlightDataPlugin
     ];
 
     if (options.readOnly) {
@@ -66,14 +82,59 @@ export class Editor {
 
   unhighlight() {
     this.view.dispatch({
-      effects: setHighlights.of(Decoration.none)
+      effects: [
+        setHighlights.of(Decoration.none),
+        setHighlightData.of([])
+      ]
     });
   }
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(
+        `lineStart ${lineStart} is out of bounds (1-${totalLines})`
+      );
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(
+        `lineEnd ${lineEnd} is out of bounds (1-${totalLines})`
+      );
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError(
+        `lineStart ${lineStart} cannot be greater than lineEnd ${lineEnd}`
+      );
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+    const fromLineLength = fromLine.to - fromLine.from;
+    const toLineLength = toLine.to - toLine.from;
+
+    if (columnStart < 1 || columnStart > fromLineLength + 1) {
+      throw new RangeError(
+        `columnStart ${columnStart} is out of bounds (1-${fromLineLength + 1}) for line ${lineStart}`
+      );
+    }
+
+    if (columnEnd < 0 || columnEnd > toLineLength) {
+      throw new RangeError(
+        `columnEnd ${columnEnd} is out of bounds (0-${toLineLength}) for line ${lineEnd}`
+      );
+    }
+
+    if (lineStart === lineEnd && columnStart > columnEnd + 1) {
+      throw new RangeError(
+        `columnStart ${columnStart} cannot be greater than columnEnd + 1 (${columnEnd + 1}) on the same line`
+      );
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -95,9 +156,19 @@ export class Editor {
       sort: true
     });
 
+    const currentData = this.view.state.field(highlightDataPlugin);
+    const newData = [...currentData, { range: [...range], color }];
+
     this.view.dispatch({
-      effects: setHighlights.of(newSet)
+      effects: [
+        setHighlights.of(newSet),
+        setHighlightData.of(newData)
+      ]
     });
+  }
+
+  highlights() {
+    return this.view.state.field(highlightDataPlugin);
   }
 
   scroll(lineNumber) {
