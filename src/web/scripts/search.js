@@ -21,7 +21,7 @@ function createChild(element, type, classes, content) {
   element.appendChild(child);
 }
 
-var timeout;
+let timeout;
 search.addEventListener('input', (event) => {
   clearTimeout(timeout);
   timeout = setTimeout(async () => {
