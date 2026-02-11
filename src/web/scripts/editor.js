@@ -72,8 +72,37 @@ export class Editor {
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+    const totalLines = this.view.state.doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(`lineStart ${lineStart} is out of range [1, ${totalLines}]`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(`lineEnd ${lineEnd} is out of range [1, ${totalLines}]`);
+    }
+
+    if (lineEnd < lineStart) {
+      throw new RangeError(`lineEnd ${lineEnd} must not be less than lineStart ${lineStart}`);
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+    const fromLineLength = fromLine.to - fromLine.from;
+    const toLineLength = toLine.to - toLine.from;
+
+    if (columnStart < 1 || columnStart > fromLineLength + 1) {
+      throw new RangeError(`columnStart ${columnStart} is out of range [1, ${fromLineLength + 1}]`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLineLength) {
+      throw new RangeError(`columnEnd ${columnEnd} is out of range [0, ${toLineLength}]`);
+    }
+
+    if (lineStart === lineEnd && columnStart - 1 > columnEnd) {
+      throw new RangeError(`columnStart ${columnStart} must not exceed columnEnd ${columnEnd} on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -115,6 +144,32 @@ export class Editor {
     });
 
     this.view.dispatch(transaction);
+  }
+
+  highlights() {
+    const result = [];
+    const decorations = this.view.state.field(highlightPlugin);
+    const cursor = decorations.iter();
+    while (cursor.value) {
+      const from = cursor.from;
+      const to = cursor.to;
+      const fromLine = this.view.state.doc.lineAt(from);
+      const toLine = this.view.state.doc.lineAt(to);
+      const style = cursor.value.spec.attributes?.style || "";
+      const match = style.match(/background-color:\s*([^;]+)/);
+      result.push({
+        range: [
+          fromLine.number,
+          from - fromLine.from + 1,
+          toLine.number,
+          to - toLine.from
+        ],
+        color: match ? match[1].trim() : ""
+      });
+      cursor.next();
+    }
+
+    return result;
   }
 
   content() {
