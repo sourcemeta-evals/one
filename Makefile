@@ -66,6 +66,11 @@ endif
 test-e2e:
 	$(HURL) --test --variable base=$(SANDBOX_URL) $(HURL_TESTS)
 
+.PHONY: test-js
+NODE ?= node
+test-js: node_modules
+	$(NODE) --experimental-vm-modules --test test/js/*.test.js
+
 .PHONY: test-ui
 test-ui: node_modules
 	$(NPX) playwright install --with-deps
