@@ -134,6 +134,32 @@ test.describe('Search UI', () => {
     await expect(page).toHaveURL(/\/test\/bundling\/single/);
   });
 
+  test('search uses fetch API instead of XMLHttpRequest', async ({ page }) => {
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    const usedFetch = await page.evaluate(() => {
+      return new Promise((resolve) => {
+        let detected = false;
+        const originalFetch = window.fetch;
+        window.fetch = (...args) => {
+          detected = true;
+          return originalFetch.apply(window, args);
+        };
+        const input = document.getElementById('search');
+        input.value = 'bundling';
+        input.dispatchEvent(new Event('input'));
+        setTimeout(() => {
+          window.fetch = originalFetch;
+          resolve(detected);
+        }, 500);
+      });
+    });
+
+    expect(usedFetch).toBe(true);
+    await expect(searchResult).not.toHaveClass(/d-none/, { timeout: 1000 });
+  });
+
   test('search without title shows only path', async ({ page }) => {
     const searchInput = page.locator('#search');
     const searchResult = page.locator('#search-result');
