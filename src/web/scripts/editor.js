@@ -70,10 +70,69 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const result = [];
+    const field = this.view.state.field(highlightPlugin);
+    const cursor = field.iter();
+    while (cursor.value) {
+      const fromLine = this.view.state.doc.lineAt(cursor.from);
+      const toLine = this.view.state.doc.lineAt(cursor.to);
+      const style = cursor.value.spec.attributes?.style || "";
+      const match = style.match(/background-color:\s*([^;]+)/);
+      result.push({
+        range: [
+          fromLine.number,
+          cursor.from - fromLine.from + 1,
+          toLine.number,
+          cursor.to - toLine.from
+        ],
+        color: match ? match[1].trim() : ""
+      });
+      cursor.next();
+    }
+
+    return result;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(
+        `lineStart out of range: ${lineStart} (1..${totalLines})`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(
+        `lineEnd out of range: ${lineEnd} (1..${totalLines})`);
+    }
+
+    if (lineEnd < lineStart) {
+      throw new RangeError(
+        `lineEnd (${lineEnd}) must be >= lineStart (${lineStart})`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(
+        `columnStart out of range: ${columnStart} (1..${fromLine.length + 1})`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(
+        `columnEnd out of range: ${columnEnd} (0..${toLine.length})`);
+    }
+
+    if (lineStart === lineEnd
+        && (fromLine.from + columnStart - 1) > (toLine.from + columnEnd)) {
+      throw new RangeError(
+        "start position must not exceed end position on the same line");
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -88,7 +147,6 @@ export class Editor {
       }
     });
 
-    // Make sure to not override existing highlights
     const current = this.view.state.field(highlightPlugin);
     const newSet = current.update({
       add: [ { from, to, value: decoration } ],
