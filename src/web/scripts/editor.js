@@ -72,8 +72,31 @@ export class Editor {
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+
+    if (lineStart < 1 || lineStart > doc.lines) {
+      throw new RangeError(`lineStart out of range: ${lineStart}`);
+    }
+
+    if (lineEnd < 1 || lineEnd > doc.lines) {
+      throw new RangeError(`lineEnd out of range: ${lineEnd}`);
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError(`lineStart (${lineStart}) is greater than lineEnd (${lineEnd})`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(`columnStart out of range: ${columnStart}`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(`columnEnd out of range: ${columnEnd}`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -119,5 +142,28 @@ export class Editor {
 
   content() {
     return this.view.state.doc.toString();
+  }
+
+  highlights() {
+    const result = [];
+    const doc = this.view.state.doc;
+    const current = this.view.state.field(highlightPlugin);
+    const cursor = current.iter();
+    while (cursor.value) {
+      const fromLine = doc.lineAt(cursor.from);
+      const toLine = doc.lineAt(cursor.to);
+      const columnStart = cursor.from - fromLine.from + 1;
+      const columnEnd = cursor.to - toLine.from;
+      const style = cursor.value.spec.attributes?.style || "";
+      const match = style.match(/background-color:\s*([^;]+)/);
+      const color = match ? match[1].trim() : "";
+      result.push({
+        range: [ fromLine.number, columnStart, toLine.number, columnEnd ],
+        color
+      });
+      cursor.next();
+    }
+
+    return result;
   }
 };
