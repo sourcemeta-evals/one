@@ -134,6 +134,20 @@ test.describe('Search UI', () => {
     await expect(page).toHaveURL(/\/test\/bundling\/single/);
   });
 
+  test('search uses fetch API instead of XMLHttpRequest', async ({ page }) => {
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    const fetchUsed = page.waitForResponse((response) =>
+      response.url().includes('/self/api/schemas/search?q='));
+
+    await searchInput.fill('bundling');
+
+    const response = await fetchUsed;
+    await expect(searchResult).not.toHaveClass(/d-none/, { timeout: 1000 });
+    expect(response.status()).toBe(200);
+  });
+
   test('search without title shows only path', async ({ page }) => {
     const searchInput = page.locator('#search');
     const searchResult = page.locator('#search-result');
