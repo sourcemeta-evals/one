@@ -146,4 +146,34 @@ test.describe('Search UI', () => {
     await expect(results).toHaveCount(1);
     await expect(results.nth(0)).toContainText('/test/schemas/camelcase');
   });
+
+  test('rapid typing debounces and shows final results', async ({ page }) => {
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    await searchInput.pressSequentially('bundling', { delay: 50 });
+
+    await expect(searchResult).not.toHaveClass(/d-none/, { timeout: 1000 });
+
+    const results = searchResult.locator('.list-group-item');
+    await expect(results).toHaveCount(2);
+    await expect(results.nth(0)).toContainText('/test/bundling/single');
+  });
+
+  test('search uses fetch API for requests', async ({ page }) => {
+    let fetchRequestUrl = null;
+    await page.route('**/self/api/schemas/search**', async (route) => {
+      fetchRequestUrl = route.request().url();
+      await route.continue();
+    });
+
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    await searchInput.fill('bundling');
+    await expect(searchResult).not.toHaveClass(/d-none/, { timeout: 1000 });
+
+    expect(fetchRequestUrl).not.toBeNull();
+    expect(fetchRequestUrl).toContain('/self/api/schemas/search?q=bundling');
+  });
 });
