@@ -134,6 +134,20 @@ test.describe('Search UI', () => {
     await expect(page).toHaveURL(/\/test\/bundling\/single/);
   });
 
+  test('search API error does not show results', async ({ page }) => {
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    await page.route('**/self/api/schemas/search*', (route) => {
+      route.fulfill({ status: 500, body: 'Internal Server Error' });
+    });
+
+    await searchInput.fill('bundling');
+
+    await page.waitForTimeout(500);
+    await expect(searchResult).toHaveClass(/d-none/);
+  });
+
   test('search without title shows only path', async ({ page }) => {
     const searchInput = page.locator('#search');
     const searchResult = page.locator('#search-result');
