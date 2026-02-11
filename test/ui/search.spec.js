@@ -146,4 +146,57 @@ test.describe('Search UI', () => {
     await expect(results).toHaveCount(1);
     await expect(results.nth(0)).toContainText('/test/schemas/camelcase');
   });
+
+  test('search uses fetch API', async ({ page }) => {
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    const fetchRequests = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/self/api/schemas/search')) {
+        fetchRequests.push(request);
+      }
+    });
+
+    await searchInput.fill('bundling');
+    await expect(searchResult).not.toHaveClass(/d-none/, { timeout: 1000 });
+
+    expect(fetchRequests.length).toBeGreaterThan(0);
+    expect(fetchRequests[0].url()).toContain('q=bundling');
+  });
+
+  test('search handles failed fetch gracefully', async ({ page }) => {
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    await page.route('**/self/api/schemas/search**', (route) => {
+      route.fulfill({ status: 500, body: 'Internal Server Error' });
+    });
+
+    await searchInput.fill('bundling');
+
+    await page.waitForTimeout(500);
+
+    await expect(searchResult).toHaveClass(/d-none/);
+  });
+
+  test('search debounces input before fetching', async ({ page }) => {
+    const searchInput = page.locator('#search');
+
+    const fetchRequests = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/self/api/schemas/search')) {
+        fetchRequests.push(request);
+      }
+    });
+
+    await searchInput.pressSequentially('bun', { delay: 50 });
+
+    await page.waitForTimeout(100);
+    expect(fetchRequests.length).toBe(0);
+
+    await page.waitForTimeout(400);
+    expect(fetchRequests.length).toBe(1);
+    expect(fetchRequests[0].url()).toContain('q=bun');
+  });
 });
