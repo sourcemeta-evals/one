@@ -25,7 +25,6 @@ const highlightPlugin = StateField.define({
   provide: (field) => EditorView.decorations.from(field)
 });
 
-export { highlightPlugin as _highlightPlugin };
 export class Editor {
   constructor(parent, contents = "", options = {}) {
     const extensions = [
