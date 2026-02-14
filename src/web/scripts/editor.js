@@ -72,8 +72,30 @@ export class Editor {
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+    const totalLines = this.view.state.doc.lines;
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(`lineStart out of range: ${lineStart}`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(`lineEnd out of range: ${lineEnd}`);
+    }
+
+    if (lineEnd < lineStart) {
+      throw new RangeError(`lineEnd (${lineEnd}) must not be less than lineStart (${lineStart})`);
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(`columnStart out of range: ${columnStart}`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(`columnEnd out of range: ${columnEnd}`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -115,6 +137,35 @@ export class Editor {
     });
 
     this.view.dispatch(transaction);
+  }
+
+  highlights() {
+    const result = [];
+    const field = this.view.state.field(highlightPlugin);
+    const cursor = field.iter();
+    while (cursor.value !== null) {
+      const from = cursor.from;
+      const to = cursor.to;
+      const style = cursor.value.spec.attributes?.style || "";
+      const match = style.match(/background-color:\s*([^;]+)/);
+      const color = match ? match[1].trim() : "";
+
+      const fromLine = this.view.state.doc.lineAt(from);
+      const toLine = this.view.state.doc.lineAt(to);
+      const lineStart = fromLine.number;
+      const columnStart = from - fromLine.from + 1;
+      const lineEnd = toLine.number;
+      const columnEnd = to - toLine.from;
+
+      result.push({
+        range: [ lineStart, columnStart, lineEnd, columnEnd ],
+        color
+      });
+
+      cursor.next();
+    }
+
+    return result;
   }
 
   content() {
