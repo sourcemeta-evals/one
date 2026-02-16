@@ -134,6 +134,23 @@ test.describe('Search UI', () => {
     await expect(page).toHaveURL(/\/test\/bundling\/single/);
   });
 
+  test('rapid typing debounces and shows only final results', async ({ page }) => {
+    const searchInput = page.locator('#search');
+    const searchResult = page.locator('#search-result');
+
+    // Type rapidly: first an invalid term, then a valid one
+    await searchInput.fill('xxxxxxxxxxxx');
+    await searchInput.fill('bundling');
+
+    // Wait for debounced results
+    await expect(searchResult).not.toHaveClass(/d-none/, { timeout: 1000 });
+
+    // Should show results for "bundling", not "No results" from the first term
+    const results = searchResult.locator('.list-group-item');
+    await expect(results).toHaveCount(2);
+    await expect(results.nth(0)).toContainText('/test/bundling/single');
+  });
+
   test('search without title shows only path', async ({ page }) => {
     const searchInput = page.locator('#search');
     const searchResult = page.locator('#search-result');
