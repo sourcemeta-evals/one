@@ -25,6 +25,8 @@ const highlightPlugin = StateField.define({
   provide: (field) => EditorView.decorations.from(field)
 });
 
+export { highlightPlugin as _highlightPlugin };
+
 export class Editor {
   constructor(parent, contents = "", options = {}) {
     const extensions = [
@@ -70,10 +72,68 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const result = [];
+    const doc = this.view.state.doc;
+    const current = this.view.state.field(highlightPlugin);
+    const cursor = current.iter();
+    while (cursor.value !== null) {
+      const fromLine = doc.lineAt(cursor.from);
+      const toLine = doc.lineAt(cursor.to);
+      const lineStart = fromLine.number;
+      const columnStart = cursor.from - fromLine.from + 1;
+      const lineEnd = toLine.number;
+      const columnEnd = cursor.to - toLine.from;
+
+      // Extract the color from the decoration's style attribute
+      const style = cursor.value.spec.attributes?.style || "";
+      const match = style.match(/background-color:\s*([^;]+)/);
+      const color = match ? match[1].trim() : "";
+
+      result.push({
+        range: [ lineStart, columnStart, lineEnd, columnEnd ],
+        color
+      });
+
+      cursor.next();
+    }
+
+    return result;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(
+        `lineStart out of range: ${lineStart} (document has ${totalLines} lines)`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(
+        `lineEnd out of range: ${lineEnd} (document has ${totalLines} lines)`);
+    }
+
+    if (lineEnd < lineStart) {
+      throw new RangeError(
+        `lineEnd (${lineEnd}) must not be less than lineStart (${lineStart})`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(
+        `columnStart out of range: ${columnStart} (line ${lineStart} has ${fromLine.length} characters)`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(
+        `columnEnd out of range: ${columnEnd} (line ${lineEnd} has ${toLine.length} characters)`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
