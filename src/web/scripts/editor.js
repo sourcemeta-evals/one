@@ -72,12 +72,37 @@ export class Editor {
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+
+    if (lineStart < 1 || lineStart > doc.lines ||
+        lineEnd < 1 || lineEnd > doc.lines) {
+      throw new RangeError("Highlight line is out of bounds");
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError("Highlight range start line is after end line");
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length) {
+      throw new RangeError("Highlight start column is out of bounds");
+    }
+
+    if (columnEnd < 1 || columnEnd > toLine.length) {
+      throw new RangeError("Highlight end column is out of bounds");
+    }
+
+    if (lineStart === lineEnd && columnStart > columnEnd) {
+      throw new RangeError("Highlight start column is after end column");
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
     const decoration = Decoration.mark({
+      highlightColor: color,
       attributes: {
         // Margin/padding to compensate whiteness between lines
         style: `
@@ -98,6 +123,28 @@ export class Editor {
     this.view.dispatch({
       effects: setHighlights.of(newSet)
     });
+  }
+
+  highlights() {
+    const result = [];
+    const doc = this.view.state.doc;
+    const current = this.view.state.field(highlightPlugin);
+
+    current.between(0, doc.length, (from, to, value) => {
+      const fromLine = doc.lineAt(from);
+      const toLine = doc.lineAt(to);
+      result.push({
+        range: [
+          fromLine.number,
+          from - fromLine.from + 1,
+          toLine.number,
+          to - toLine.from
+        ],
+        color: value.spec.highlightColor
+      });
+    });
+
+    return result;
   }
 
   scroll(lineNumber) {
