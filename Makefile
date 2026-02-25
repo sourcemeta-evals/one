@@ -7,6 +7,7 @@ SHELLCHECK ?= shellcheck
 MKDOCS ?= mkdocs
 NPM ?= npm
 NPX ?= npx
+NODE ?= node
 
 # Options
 INDEX ?= ON
@@ -56,6 +57,10 @@ lint:
 .PHONY: test
 test:
 	$(CTEST) --test-dir $(OUTPUT) --build-config $(PRESET) --output-on-failure --parallel
+
+.PHONY: test-js
+test-js: node_modules
+	$(NODE) --test test/js/*.test.js
 
 .PHONY: test-e2e
 HURL_TESTS += test/e2e/$(SANDBOX_CONFIGURATION)/*.hurl
