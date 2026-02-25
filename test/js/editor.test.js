@@ -71,4 +71,76 @@ describe("Editor", () => {
     editor.setContent("line 1\nline 2\nline 3");
     assert.strictEqual(editor.content(), "line 1\nline 2\nline 3");
   });
+
+  test("highlights returns empty array by default", () => {
+    const editor = new Editor(container, "line 1\nline 2");
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight stores single-line range and color", () => {
+    const editor = new Editor(container, "abcd\nefgh");
+    editor.highlight([1, 2, 1, 3], "#ff0000");
+
+    assert.deepStrictEqual(editor.highlights(), [ {
+      range: [1, 2, 1, 3],
+      color: "#ff0000"
+    } ]);
+  });
+
+  test("highlight stores multi-line range and color", () => {
+    const editor = new Editor(container, "abcd\nefgh");
+    editor.highlight([1, 3, 2, 2], "#00ff00");
+
+    assert.deepStrictEqual(editor.highlights(), [ {
+      range: [1, 3, 2, 2],
+      color: "#00ff00"
+    } ]);
+  });
+
+  test("highlight does not override existing highlights", () => {
+    const editor = new Editor(container, "abcd\nefgh\nijkl");
+    editor.highlight([3, 2, 3, 4], "#0000ff");
+    editor.highlight([1, 1, 1, 2], "#ff0000");
+
+    assert.deepStrictEqual(editor.highlights(), [
+      {
+        range: [1, 1, 1, 2],
+        color: "#ff0000"
+      },
+      {
+        range: [3, 2, 3, 4],
+        color: "#0000ff"
+      }
+    ]);
+  });
+
+  test("unhighlight removes all highlights", () => {
+    const editor = new Editor(container, "abcd\nefgh");
+    editor.highlight([1, 1, 1, 2], "#ff0000");
+    editor.highlight([2, 2, 2, 3], "#00ff00");
+
+    editor.unhighlight();
+
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight throws RangeError for out-of-bounds ranges", () => {
+    const editor = new Editor(container, "abcd\nefgh");
+    const invalidRanges = [
+      [0, 1, 1, 1],
+      [1, 1, 3, 1],
+      [1, 0, 1, 1],
+      [1, 5, 1, 1],
+      [1, 1, 1, 0],
+      [1, 1, 1, 5],
+      [2, 1, 1, 1],
+      [1, 3, 1, 2]
+    ];
+
+    for (const range of invalidRanges) {
+      assert.throws(() => {
+        editor.highlight(range, "#123456");
+      }, RangeError);
+    }
+  });
 });

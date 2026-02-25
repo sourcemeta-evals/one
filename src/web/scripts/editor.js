@@ -72,8 +72,27 @@ export class Editor {
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const document = this.view.state.doc;
+
+    if (lineStart < 1 || lineEnd < 1 || lineStart > document.lines || lineEnd > document.lines) {
+      throw new RangeError("Line bounds out of range");
+    }
+
+    const fromLine = document.line(lineStart);
+    const toLine = document.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length) {
+      throw new RangeError("Start column out of range");
+    }
+
+    if (columnEnd < 1 || columnEnd > toLine.length) {
+      throw new RangeError("End column out of range");
+    }
+
+    if (lineStart > lineEnd || (lineStart === lineEnd && columnStart > columnEnd)) {
+      throw new RangeError("Invalid highlight range");
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -84,7 +103,8 @@ export class Editor {
           background-color: ${color};
           margin: -2px 0 -2px 0;
           padding: 2px 0 2px 0;
-        `
+        `,
+        "data-highlight-color": color
       }
     });
 
@@ -98,6 +118,28 @@ export class Editor {
     this.view.dispatch({
       effects: setHighlights.of(newSet)
     });
+  }
+
+  highlights() {
+    const document = this.view.state.doc;
+    const current = this.view.state.field(highlightPlugin);
+    const ranges = [];
+
+    current.between(0, document.length, (from, to, value) => {
+      const fromLine = document.lineAt(from);
+      const toLine = document.lineAt(Math.max(from, to - 1));
+      ranges.push({
+        range: [
+          fromLine.number,
+          from - fromLine.from + 1,
+          toLine.number,
+          to - toLine.from
+        ],
+        color: value.spec.attributes["data-highlight-color"]
+      });
+    });
+
+    return ranges;
   }
 
   scroll(lineNumber) {
