@@ -72,10 +72,33 @@ export class Editor {
 
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+
+    if (lineStart < 1 || lineStart > doc.lines) {
+      throw new RangeError(`lineStart out of range: ${lineStart}`);
+    }
+
+    if (lineEnd < 1 || lineEnd > doc.lines) {
+      throw new RangeError(`lineEnd out of range: ${lineEnd}`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(`columnStart out of range: ${columnStart}`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(`columnEnd out of range: ${columnEnd}`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
+
+    if (from > to) {
+      throw new RangeError("Highlight start position is after end position");
+    }
 
     const decoration = Decoration.mark({
       attributes: {
@@ -115,6 +138,31 @@ export class Editor {
     });
 
     this.view.dispatch(transaction);
+  }
+
+  highlights() {
+    const result = [];
+    const set = this.view.state.field(highlightPlugin);
+    const iter = set.iter();
+    while (iter.value) {
+      const fromLine = this.view.state.doc.lineAt(iter.from);
+      const toLine = this.view.state.doc.lineAt(iter.to);
+      const style = iter.value.spec.attributes.style;
+      const colorMatch = style.match(/background-color:\s*([^;]+)/);
+      result.push({
+        range: [
+          fromLine.number,
+          iter.from - fromLine.from + 1,
+          toLine.number,
+          iter.to - toLine.from
+        ],
+        color: colorMatch ? colorMatch[1].trim() : ""
+      });
+
+      iter.next();
+    }
+
+    return result;
   }
 
   content() {
