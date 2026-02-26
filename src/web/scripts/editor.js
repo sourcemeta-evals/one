@@ -71,13 +71,37 @@ export class Editor {
   }
 
   highlight(range, color) {
+    if (!Array.isArray(range) || range.length !== 4 ||
+        range.some((value) => !Number.isInteger(value))) {
+      throw new RangeError("Invalid highlight range");
+    }
+
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+
+    if (lineStart < 1 || lineEnd < 1 || lineStart > lineEnd) {
+      throw new RangeError("Invalid highlight range");
+    }
+
+    if (columnStart < 1 || columnEnd < 1) {
+      throw new RangeError("Invalid highlight range");
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+
+    if (columnStart > fromLine.length || columnEnd > toLine.length) {
+      throw new RangeError("Invalid highlight range");
+    }
+
+    if (lineStart === lineEnd && columnStart > columnEnd) {
+      throw new RangeError("Invalid highlight range");
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
     const decoration = Decoration.mark({
+      color,
       attributes: {
         // Margin/padding to compensate whiteness between lines
         style: `
@@ -98,6 +122,28 @@ export class Editor {
     this.view.dispatch({
       effects: setHighlights.of(newSet)
     });
+  }
+
+  highlights() {
+    const current = this.view.state.field(highlightPlugin);
+    const doc = this.view.state.doc;
+    const result = [];
+
+    for (let cursor = current.iter(); cursor.value; cursor.next()) {
+      const fromLine = doc.lineAt(cursor.from);
+      const toLine = doc.lineAt(Math.max(0, cursor.to - 1));
+      result.push({
+        range: [
+          fromLine.number,
+          cursor.from - fromLine.from + 1,
+          toLine.number,
+          cursor.to - toLine.from
+        ],
+        color: cursor.value.spec.color
+      });
+    }
+
+    return result;
   }
 
   scroll(lineNumber) {

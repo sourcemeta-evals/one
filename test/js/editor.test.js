@@ -71,4 +71,106 @@ describe("Editor", () => {
     editor.setContent("line 1\nline 2\nline 3");
     assert.strictEqual(editor.content(), "line 1\nline 2\nline 3");
   });
+
+  test("highlights returns empty array by default", () => {
+    const editor = new Editor(container, "hello");
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight exposes highlighted range and color", () => {
+    const editor = new Editor(container, "hello world");
+    editor.highlight([ 1, 2, 1, 5 ], "#ff0000");
+
+    assert.deepStrictEqual(editor.highlights(), [
+      {
+        range: [ 1, 2, 1, 5 ],
+        color: "#ff0000"
+      }
+    ]);
+  });
+
+  test("highlight exposes multiline ranges", () => {
+    const editor = new Editor(container, "alpha\nbeta\ngamma");
+    editor.highlight([ 1, 2, 2, 3 ], "#00ff00");
+
+    assert.deepStrictEqual(editor.highlights(), [
+      {
+        range: [ 1, 2, 2, 3 ],
+        color: "#00ff00"
+      }
+    ]);
+  });
+
+  test("highlight preserves multiple highlights", () => {
+    const editor = new Editor(container, "abcdef");
+    editor.highlight([ 1, 1, 1, 2 ], "#ff0000");
+    editor.highlight([ 1, 4, 1, 6 ], "#0000ff");
+
+    assert.deepStrictEqual(editor.highlights(), [
+      {
+        range: [ 1, 1, 1, 2 ],
+        color: "#ff0000"
+      },
+      {
+        range: [ 1, 4, 1, 6 ],
+        color: "#0000ff"
+      }
+    ]);
+  });
+
+  test("unhighlight clears existing highlights", () => {
+    const editor = new Editor(container, "abcdef");
+    editor.highlight([ 1, 1, 1, 3 ], "#ff0000");
+    editor.unhighlight();
+
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight throws RangeError for invalid line bounds", () => {
+    const editor = new Editor(container, "abc\ndef");
+
+    assert.throws(() => {
+      editor.highlight([ 0, 1, 1, 1 ], "#ff0000");
+    }, RangeError);
+
+    assert.throws(() => {
+      editor.highlight([ 1, 1, 3, 1 ], "#ff0000");
+    }, RangeError);
+
+    assert.throws(() => {
+      editor.highlight([ 2, 1, 1, 1 ], "#ff0000");
+    }, RangeError);
+  });
+
+  test("highlight throws RangeError for invalid column bounds", () => {
+    const editor = new Editor(container, "abc\ndef");
+
+    assert.throws(() => {
+      editor.highlight([ 1, 0, 1, 1 ], "#ff0000");
+    }, RangeError);
+
+    assert.throws(() => {
+      editor.highlight([ 1, 1, 1, 4 ], "#ff0000");
+    }, RangeError);
+
+    assert.throws(() => {
+      editor.highlight([ 1, 1, 2, 4 ], "#ff0000");
+    }, RangeError);
+
+    assert.throws(() => {
+      editor.highlight([ 1, 3, 1, 2 ], "#ff0000");
+    }, RangeError);
+  });
+
+  test("highlight throws RangeError for malformed ranges", () => {
+    const editor = new Editor(container, "abc");
+
+    assert.throws(() => {
+      editor.highlight([ 1, 1, 1 ], "#ff0000");
+    }, RangeError);
+
+    assert.throws(() => {
+      editor.highlight([ 1, 1.5, 1, 2 ], "#ff0000");
+    }, RangeError);
+  });
 });
