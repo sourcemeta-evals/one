@@ -71,13 +71,38 @@ export class Editor {
   }
 
   highlight(range, color) {
+    if (!Array.isArray(range) || range.length !== 4) {
+      throw new RangeError("Expected a highlight range of 4 numbers");
+    }
+
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+    if (![ lineStart, columnStart, lineEnd, columnEnd ].every(Number.isInteger)) {
+      throw new RangeError("Expected integer highlight coordinates");
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError("The highlight start line must not exceed the end line");
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError("The highlight start column is out of bounds");
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError("The highlight end column is out of bounds");
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
+    if (from > to) {
+      throw new RangeError("The highlight start must not exceed the end");
+    }
 
     const decoration = Decoration.mark({
+      color,
       attributes: {
         // Margin/padding to compensate whiteness between lines
         style: `
@@ -98,6 +123,30 @@ export class Editor {
     this.view.dispatch({
       effects: setHighlights.of(newSet)
     });
+  }
+
+  highlights() {
+    const highlights = [];
+    const doc = this.view.state.doc;
+
+    this.view.state.field(highlightPlugin).between(0, doc.length, (from, to, value) => {
+      const fromLine = doc.lineAt(from);
+      const toLine = doc.lineAt(to);
+      const color = value.spec.color ??
+        value.spec.attributes?.style?.match(/background-color:\s*([^;]+);/)?.[1]?.trim();
+
+      highlights.push({
+        range: [
+          fromLine.number,
+          from - fromLine.from + 1,
+          toLine.number,
+          to - toLine.from
+        ],
+        color
+      });
+    });
+
+    return highlights;
   }
 
   scroll(lineNumber) {
