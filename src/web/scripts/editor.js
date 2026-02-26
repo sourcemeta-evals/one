@@ -70,10 +70,67 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const result = [];
+    const current = this.view.state.field(highlightPlugin);
+    const cursor = current.iter();
+    while (cursor.value !== null) {
+      const fromLine = this.view.state.doc.lineAt(cursor.from);
+      const toLine = this.view.state.doc.lineAt(cursor.to);
+      const lineStart = fromLine.number;
+      const columnStart = cursor.from - fromLine.from + 1;
+      const lineEnd = toLine.number;
+      const columnEnd = cursor.to - toLine.from;
+      const style = cursor.value.spec.attributes?.style || "";
+      const match = style.match(/background-color:\s*([^;]+)/);
+      const color = match ? match[1].trim() : "";
+      result.push({
+        range: [ lineStart, columnStart, lineEnd, columnEnd ],
+        color
+      });
+      cursor.next();
+    }
+
+    return result;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+    const totalLines = this.view.state.doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(
+        `lineStart is out of range: ${lineStart}`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(
+        `lineEnd is out of range: ${lineEnd}`);
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError(
+        `lineStart (${lineStart}) is greater than lineEnd (${lineEnd})`);
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+
+    if (columnStart < 1 || columnStart > fromLine.length + 1) {
+      throw new RangeError(
+        `columnStart is out of range: ${columnStart}`);
+    }
+
+    if (columnEnd < 0 || columnEnd > toLine.length) {
+      throw new RangeError(
+        `columnEnd is out of range: ${columnEnd}`);
+    }
+
+    if (lineStart === lineEnd && columnStart - 1 > columnEnd) {
+      throw new RangeError(
+        `columnStart (${columnStart}) is greater than columnEnd (${columnEnd}) on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
