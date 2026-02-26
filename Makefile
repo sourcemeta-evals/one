@@ -7,6 +7,7 @@ SHELLCHECK ?= shellcheck
 MKDOCS ?= mkdocs
 NPM ?= npm
 NPX ?= npx
+NODE ?= node
 
 # Options
 INDEX ?= ON
@@ -65,6 +66,10 @@ HURL_TESTS += test/e2e/populated/api/*.hurl
 endif
 test-e2e:
 	$(HURL) --test --variable base=$(SANDBOX_URL) $(HURL_TESTS)
+
+.PHONY: test-js
+test-js: node_modules
+	$(NODE) --test test/js/*.test.js
 
 .PHONY: test-ui
 test-ui: node_modules
