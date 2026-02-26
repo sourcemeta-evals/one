@@ -70,10 +70,52 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const highlights = [];
+    const doc = this.view.state.doc;
+    this.view.state.field(highlightPlugin)
+      .between(0, doc.length, (from, to, value) => {
+        const fromLine = doc.lineAt(from);
+        const toLine = doc.lineAt(to);
+        const style = value.spec.attributes?.style ?? "";
+        const color = style.match(/background-color:\s*([^;]+);/i)?.[1]?.trim() ?? "";
+
+        highlights.push({
+          range: [
+            fromLine.number,
+            from - fromLine.from + 1,
+            toLine.number,
+            to - toLine.from
+          ],
+          color
+        });
+      });
+
+    return highlights;
+  }
+
   highlight(range, color) {
+    if (!Array.isArray(range) || range.length !== 4 ||
+      !range.every((value) => Number.isInteger(value))) {
+      throw new RangeError("Expected [lineStart, columnStart, lineEnd, columnEnd]");
+    }
+
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
+    const totalLines = this.view.state.doc.lines;
+    if (lineStart < 1 || lineStart > totalLines ||
+      lineEnd < 1 || lineEnd > totalLines ||
+      lineStart > lineEnd) {
+      throw new RangeError("Line range out of bounds");
+    }
+
     const fromLine = this.view.state.doc.line(lineStart);
     const toLine = this.view.state.doc.line(lineEnd);
+    if (columnStart < 1 || columnStart > fromLine.length ||
+      columnEnd < 1 || columnEnd > toLine.length ||
+      (lineStart === lineEnd && columnStart > columnEnd)) {
+      throw new RangeError("Column range out of bounds");
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 

@@ -71,4 +71,70 @@ describe("Editor", () => {
     editor.setContent("line 1\nline 2\nline 3");
     assert.strictEqual(editor.content(), "line 1\nline 2\nline 3");
   });
+
+  test("highlights returns empty array by default", () => {
+    const editor = new Editor(container, "line 1\nline 2");
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight exposes highlighted ranges and colors", () => {
+    const editor = new Editor(container, "line 1\nline 2");
+    editor.highlight([1, 2, 1, 4], "#ff0000");
+    editor.highlight([2, 1, 2, 5], "#00ff00");
+
+    assert.deepStrictEqual(editor.highlights(), [
+      { range: [1, 2, 1, 4], color: "#ff0000" },
+      { range: [2, 1, 2, 5], color: "#00ff00" }
+    ]);
+  });
+
+  test("highlight supports multiline ranges", () => {
+    const editor = new Editor(container, "alpha\nbeta");
+    editor.highlight([1, 2, 2, 3], "#123456");
+
+    assert.deepStrictEqual(editor.highlights(), [
+      { range: [1, 2, 2, 3], color: "#123456" }
+    ]);
+  });
+
+  test("unhighlight clears existing highlights", () => {
+    const editor = new Editor(container, "line 1");
+    editor.highlight([1, 1, 1, 4], "#ff0000");
+
+    assert.deepStrictEqual(editor.highlights(), [
+      { range: [1, 1, 1, 4], color: "#ff0000" }
+    ]);
+
+    editor.unhighlight();
+    assert.deepStrictEqual(editor.highlights(), []);
+  });
+
+  test("highlight throws RangeError on malformed ranges", () => {
+    const editor = new Editor(container, "line 1");
+
+    assert.throws(() => editor.highlight([1, 1, 1], "#ff0000"), RangeError);
+    assert.throws(() => editor.highlight([1, 1, 1, 1.2], "#ff0000"), RangeError);
+  });
+
+  test("highlight throws RangeError on out-of-bounds line numbers", () => {
+    const editor = new Editor(container, "line 1\nline 2");
+
+    assert.throws(() => editor.highlight([0, 1, 1, 1], "#ff0000"), RangeError);
+    assert.throws(() => editor.highlight([1, 1, 3, 1], "#ff0000"), RangeError);
+    assert.throws(() => editor.highlight([2, 1, 1, 1], "#ff0000"), RangeError);
+  });
+
+  test("highlight throws RangeError on out-of-bounds columns", () => {
+    const editor = new Editor(container, "line 1\nline 2");
+
+    assert.throws(() => editor.highlight([1, 0, 1, 1], "#ff0000"), RangeError);
+    assert.throws(() => editor.highlight([1, 7, 1, 1], "#ff0000"), RangeError);
+    assert.throws(() => editor.highlight([1, 1, 1, 0], "#ff0000"), RangeError);
+    assert.throws(() => editor.highlight([1, 1, 1, 7], "#ff0000"), RangeError);
+  });
+
+  test("highlight throws RangeError when range is reversed on same line", () => {
+    const editor = new Editor(container, "line 1");
+    assert.throws(() => editor.highlight([1, 5, 1, 4], "#ff0000"), RangeError);
+  });
 });
