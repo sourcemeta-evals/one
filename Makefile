@@ -59,6 +59,10 @@ lint:
 test:
 	$(CTEST) --test-dir $(OUTPUT) --build-config $(PRESET) --output-on-failure --parallel
 
+.PHONY: test-js
+test-js: node_modules
+	$(NODE) --test test/js/editor.test.js
+
 .PHONY: test-e2e
 HURL_TESTS += test/e2e/$(SANDBOX_CONFIGURATION)/*.hurl
 ifneq ($(SANDBOX_CONFIGURATION),empty)
