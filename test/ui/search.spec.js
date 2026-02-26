@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 test.describe('Search UI', () => {
   test.beforeEach(async ({ page }) => {
@@ -145,5 +148,36 @@ test.describe('Search UI', () => {
     const results = searchResult.locator('.list-group-item');
     await expect(results).toHaveCount(1);
     await expect(results.nth(0)).toContainText('/test/schemas/camelcase');
+  });
+});
+
+test.describe('Search script ES6 compliance', () => {
+  const searchScript = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)),
+      '../../src/web/scripts/search.js'), 'utf-8');
+
+  test('does not use var declarations', () => {
+    expect(searchScript).not.toMatch(/\bvar\s/);
+  });
+
+  test('does not use XMLHttpRequest', () => {
+    expect(searchScript).not.toMatch(/XMLHttpRequest/);
+  });
+
+  test('uses const or let declarations', () => {
+    expect(searchScript).toMatch(/\bconst\s/);
+    expect(searchScript).toMatch(/\blet\s/);
+  });
+
+  test('uses arrow functions', () => {
+    expect(searchScript).toMatch(/=>/);
+  });
+
+  test('uses template literals for URL construction', () => {
+    expect(searchScript).toMatch(/`[^`]*\$\{[^}]+\}[^`]*`/);
+  });
+
+  test('uses fetch API instead of XMLHttpRequest', () => {
+    expect(searchScript).toMatch(/\bfetch\(/);
   });
 });
