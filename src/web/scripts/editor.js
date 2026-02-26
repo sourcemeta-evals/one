@@ -70,10 +70,71 @@ export class Editor {
     });
   }
 
+  highlights() {
+    const result = [];
+    const doc = this.view.state.doc;
+    const current = this.view.state.field(highlightPlugin);
+    const cursor = current.iter();
+    while (cursor.value !== null) {
+      const fromLine = doc.lineAt(cursor.from);
+      const toLine = doc.lineAt(cursor.to);
+      const style = cursor.value.spec.attributes?.style || "";
+      const match = style.match(/background-color:\s*([^;]+)/);
+      result.push({
+        range: [
+          fromLine.number,
+          cursor.from - fromLine.from + 1,
+          toLine.number,
+          cursor.to - toLine.from
+        ],
+        color: match ? match[1].trim() : ""
+      });
+      cursor.next();
+    }
+
+    return result;
+  }
+
   highlight(range, color) {
     const [ lineStart, columnStart, lineEnd, columnEnd ] = range;
-    const fromLine = this.view.state.doc.line(lineStart);
-    const toLine = this.view.state.doc.line(lineEnd);
+    const doc = this.view.state.doc;
+    const totalLines = doc.lines;
+
+    if (lineStart < 1 || lineStart > totalLines) {
+      throw new RangeError(
+        `lineStart out of range: ${lineStart} (document has ${totalLines} lines)`);
+    }
+
+    if (lineEnd < 1 || lineEnd > totalLines) {
+      throw new RangeError(
+        `lineEnd out of range: ${lineEnd} (document has ${totalLines} lines)`);
+    }
+
+    if (lineStart > lineEnd) {
+      throw new RangeError(
+        `lineStart (${lineStart}) must not be greater than lineEnd (${lineEnd})`);
+    }
+
+    const fromLine = doc.line(lineStart);
+    const toLine = doc.line(lineEnd);
+
+    const fromLineLength = fromLine.to - fromLine.from;
+    if (columnStart < 1 || columnStart > fromLineLength + 1) {
+      throw new RangeError(
+        `columnStart out of range: ${columnStart} (line ${lineStart} has ${fromLineLength} characters)`);
+    }
+
+    const toLineLength = toLine.to - toLine.from;
+    if (columnEnd < 0 || columnEnd > toLineLength) {
+      throw new RangeError(
+        `columnEnd out of range: ${columnEnd} (line ${lineEnd} has ${toLineLength} characters)`);
+    }
+
+    if (lineStart === lineEnd && columnStart - 1 > columnEnd) {
+      throw new RangeError(
+        `columnStart (${columnStart}) must not exceed columnEnd (${columnEnd}) on the same line`);
+    }
+
     const from = fromLine.from + columnStart - 1;
     const to = toLine.from + columnEnd;
 
@@ -120,4 +181,4 @@ export class Editor {
   content() {
     return this.view.state.doc.toString();
   }
-};
+}
