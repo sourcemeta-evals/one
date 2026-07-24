@@ -7,6 +7,8 @@ const { JSDOM } = require("jsdom");
 
 const dom = new JSDOM("<!DOCTYPE html><html><body><div id=\"editor\"></div></body></html>");
 
+const foo = "bar";
+
 // Additional stubs needed by CodeMirror
 global.document = dom.window.document;
 global.window = dom.window;
