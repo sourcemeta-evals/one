@@ -1,5 +1,5 @@
-const search = document.getElementById('search');
-const searchResult = document.getElementById('search-result');
+let search = document.getElementById('search');
+let searchResult = document.getElementById('search-result');
 let hasSearchResults = false;
 
 document.addEventListener('click', (event) => {
@@ -15,7 +15,7 @@ search.addEventListener('focus', () => {
 });
 
 function createChild(element, type, classes, content) {
-  const child = document.createElement(type);
+  let child = document.createElement(type);
   child.className = classes;
   child.textContent = content;
   element.appendChild(child);
@@ -31,17 +31,17 @@ search.addEventListener('input', (event) => {
     }
 
     console.log('Searching for:', event.target.value);
-    const response = await fetch(`/self/api/schemas/search?q=${encodeURIComponent(event.target.value)}`);
+    let response = await fetch(`/self/api/schemas/search?q=${encodeURIComponent(event.target.value)}`);
     if (!response.ok) {
       return;
     }
 
-    const results = await response.json();
+    let results = await response.json();
     searchResult.innerHTML = '';
     searchResult.classList.remove('d-none');
     if (results.length === 0) {
       hasSearchResults = false;
-      const anchor = document.createElement('a');
+      let anchor = document.createElement('a');
       anchor.href = '#';
       anchor.className = 'list-group-item list-group-item-action disabled';
       anchor.setAttribute('aria-disabled', 'true');
@@ -49,8 +49,8 @@ search.addEventListener('input', (event) => {
       searchResult.appendChild(anchor);
     } else {
       hasSearchResults = true;
-      for (const entry of results) {
-        const anchor = document.createElement('a');
+      for (let entry of results) {
+        let anchor = document.createElement('a');
         anchor.href = entry.path;
         anchor.className = 'list-group-item list-group-item-action';
         createChild(anchor, 'small', 'font-monospace', entry.path);
